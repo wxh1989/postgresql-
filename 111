@@ -1,0 +1,154 @@
+<a name="ig9Cq"></a>
+# ![PostgreSQL.png](https://cdn.nlark.com/yuque/0/2021/png/789898/1629688537680-2c5dc411-d7cd-451b-9d29-b31dba8d85bb.png#clientId=u37cdbd86-377b-4&from=ui&height=28&id=uff30f930&margin=%5Bobject%20Object%5D&name=PostgreSQL.png&originHeight=200&originWidth=200&originalType=binary&ratio=1&size=15014&status=done&style=none&taskId=u0927966b-fa6d-4bc5-992e-ac93fafbb2a&width=28)  数据库连接工具 选择
+ 工具1  datagrip ：[https://www.jetbrains.com/zh-cn/datagrip/](https://www.jetbrains.com/zh-cn/datagrip/)<br /> 工具2  navicat
+<a name="mEw1l"></a>
+# 数据库配置文件
+<a name="vPiI6"></a>
+### 数据库安装完成 修改  pg_hba.conf
+配置完成后 重启 服务生效，此配置设置 所有ip地址都可以访问数据库，不配置此选项，需要在此配置文件内设置固定的 访问_IP地址_
+```java
+ host    all             all              0.0.0.0/0              md5
+```
+<a name="AXwM5"></a>
+### 修改pg_config文件
+> 将文件中的 对应的键替换成 如下的值，修改此参数 是为了 查询最耗时SQL用的
+
+```plsql
+shared_preload_libraries = 'pg_stat_statements'
+pg_stat_statements.max = 1000
+pg_stat_statements.track = all
+```
+<a name="Xpg9I"></a>
+### 如果出现 获取当前时间不正确 需要配置时区
+配置 postgresql.conf  找到 timezone 
+```java
+timezone = 'Asia/Shanghai'
+```
+<a name="hdiHa"></a>
+### 安装常用扩展包
+> postgresql 有很多官方和第三方开源的扩展包，有很强大辅助功能，我们要解决复杂的处理，先看看网上有没有人已经提供了扩展包 无需我们自己实现
+
+```plsql
+--此扩展包 固定列的交叉表转换函数
+create extension tablefunc;
+--可查询 最好是视图的扩展包
+create extension pg_stat_statements;
+```
+开发工具 1，连接 数据库 获取时间不正确，设置 工具的 timezone  ，Asia/Shanghai<br />![image.png](https://cdn.nlark.com/yuque/0/2021/png/789898/1629451840437-9e476fd8-950e-4586-a8e1-1c1922db25cb.png#clientId=u6e5e946e-57f8-4&from=paste&height=419&id=u6bc6fd5a&margin=%5Bobject%20Object%5D&name=image.png&originHeight=838&originWidth=1018&originalType=binary&ratio=1&size=92100&status=done&style=none&taskId=uf43b759f-f262-4c7f-949f-23792cdaa70&width=509)
+
+---
+
+
+
+<a name="NeTU8"></a>
+# 系统数据查询
+查询最耗时
+<a name="biZFT"></a>
+# 存储过程和函数
+postgresql  在 13 以前没有存储过程，所有统一使用函数，13的以后的存储过程 和 函数基本一样<br />所以我们项目还是 统一将 存储过程也创建成函数，plv8 和 python 用存储过程
+<a name="W9Q9A"></a>
+# oracle 和 pg 语法区别
+<a name="qowVM"></a>
+#### 查询虚拟表
+```plsql
+--Oracle
+select 1 from dual ;
+-- postgresql 
+select 1 ;
+```
+<a name="BHxF2"></a>
+#### 数据类型
+| oracle类型 | pg数据类型 | 备注 |
+| --- | --- | --- |
+| varchar2,nvarchar2 | varchar |  |
+| clob | text |  |
+| char(1) | boolean |  |
+| date | date 或 timestamp | date：值存储到日期<br />​timestamp： 存储到时间 |
+| number | numeric | ​<br /> |
+| integer | integer |  |
+
+<a name="YOOER"></a>
+#### 数据类型一致性
+oracle中可能出现 同样是字符，出现字符集不相等的时候，通常我们会将2边的 字段都用 **to_char** 转换类型，<br />pgsql 就不要这么操作，如果在字符上使用**to_char**,pg将会出现错误。**to_char **在pg中也是用来做日期格式化的<br />
+
+<a name="KM8r3"></a>
+#### 函数不同
+| oracle函数 | postgresql函数 | 备注 |
+| --- | --- | --- |
+| instr | position |  |
+| substr | substr | pg的下标从1开始 |
+| nvl | coalesce | 特别注意oracle nvl 的返回值是任意类型，但是pg的返回值，必须第一个参数的字段类型一致，<br />**我自己封装了一个 **nvl **函数仅限于字符类型和数字类型使用，正常情况下 不需要用我写的** |
+| sysdate | now() |  |
+| listagg | string_agg |  |
+
+<a name="jWCwZ"></a>
+#### 文本输出语句
+```plsql
+--% 固定写法 str 是要输出的变量
+raise notice '%',str;
+```
+
+---
+
+<a name="pw2Uj"></a>
+# 常用函数
+> 所有函数查看 官方文档 ： [https://www.postgresql.org/docs/13/functions.html](https://www.postgresql.org/docs/13/functions.html) 
+
+| 返回非空值 | coalesce | coalesce(A,B) | 当参数A为Null返回参数B | 当A |
+| --- | --- | --- | --- | --- |
+|  | nullif | nullif(A,B) | 当A和B相等返回A |  |
+| 全球唯一码 | gen_random_uuid  |  | 生成全球唯一码 |  |
+| 替换指定位置字符 | overlay | select  overlay(A placing B from 开始下标 for 结束下标); | 将 A 字符串 开始位置 到 结束位置 替换成B字符串 |  |
+| 替换指定字符 | replace  | replace('abcdefabcdef', 'cd', 'XX')  | 将字符串中的cd 替换成 xx |  |
+| 返回字符长度 | length | length(A) |  |  |
+| 分割字符串 | split_part | select split_part(A, B, 下标) ; | 将A字符 按B字符进行分割，返回执行下标的字符串 |  |
+| 正则表达分割字符串 | regexp_split_to_table | select regexp_split_to_table(A,B) | 将A字符 按B字符进行分割，返回表 ，此函数 B 参数支持正则表达式<br />regexp_split_to_array 这个函数返回数组， |  |
+| 返回行号 | row_number | rownumber() over() | 返回行号 |  |
+| 提取日期 | date_part | date_part(A,B)<br />例子: date_part('hour',now()) | A 参数是要提取的 类型<br />有：year month,day hour 等<br />B 要提取的日期<br />​<br /> |  |
+| 截取日期 | date_trunc | date_trunc(A,B)<br />例子: date_part('hour',now()) | hour以后的日期，将被替换成默认值 |  |
+|  | ​<br /> |  |  |  |
+|  |  |  |  |  |
+|  |  |  |  |  |
+|  |  |  |  |  |
+
+
+---
+
+<a name="cA7uT"></a>
+# 自定义函数
+
+
+
+---
+
+<a name="HecUJ"></a>
+# 数据库备份及还原
+<a name="x6E9f"></a>
+### 全库备份
+>  cmd 进入到postgresql安装目录 bin文件夹 执行 如下语句
+> pg_dump --hellp 可以查看更多备份 参数
+> -v 这个参数是，在控制台总输出 备份的明细
+> 1. 全库备份 不建议使用，这将备份 系统库 和 系统用户等信息
+
+```plsql
+1、--全库备份
+pg_dumpall --host=127.0.0.1 --username=cqpt  --port=5432 -v --file=D:\PostgreSQL\backup.sql
+```
+<a name="WQKoL"></a>
+### 备份指定库
+> 2. 建议使用 指定备份数据库，注意 2 备份出来的 没有用户和对应的数据库，还原时需要手动创建好用户和，同名的空数据库，在进行还原
+
+```plsql
+
+2、--备份指定 数据库
+pg_dump --host 127.0.0.1 --port 5432 --username cqpt --file D:\Temp\backup --format p -v cqpt_database
+```
+<a name="vMIma"></a>
+### 还原数据库
+> 还原数据库
+> cqpt_database 最后一个参数 还原到 cqpt_database这个数据库
+
+```plsql
+--还原数据 到指定 用户 指定 数据库
+psql --username cqpt --set  ON_ERROR_STOP=on --file D:\PostgreSQL\backup cqpt_database
+```
